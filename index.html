@@ -5,19 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Marker AR · Car demo</title>
 
-  <!-- A-Frame & AR.js (marker based) from CDN – no build tools -->
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- 🔥 FIXED: Use A-Frame 1.4.0 (stable with AR.js 2.2.4) -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/ar.js@2.2.4/aframe/build/aframe-ar.min.js"></script>
 
   <style>
-    /* reset & fullscreen canvas */
     body {
       margin: 0;
       overflow: hidden;
+      background: #000; /* fallback black */
       font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
 
-    /* --- permission overlay: shown before camera prompt --- */
+    /* Force canvas to be black initially */
+    #ar-scene {
+      background: #000 !important;
+    }
+
     #permission-overlay {
       position: fixed;
       inset: 0;
@@ -58,17 +62,13 @@
       border-radius: 60px;
       cursor: pointer;
       box-shadow: 0 8px 20px rgba(0,20,80,0.4);
-      transition: background 0.2s, transform 0.1s;
+      transition: background 0.2s;
       font-weight: 500;
     }
     #permission-overlay .btn-primary:hover {
       background: #5f8cff;
     }
-    #permission-overlay .btn-primary:active {
-      transform: scale(0.96);
-    }
 
-    /* --- error screen (camera denied / no camera) --- */
     #error-screen {
       position: fixed;
       inset: 0;
@@ -94,7 +94,6 @@
       font-size: 1.1rem;
       max-width: 400px;
       opacity: 0.85;
-      line-height: 1.6;
     }
     #error-screen .hint {
       background: #2a2a32;
@@ -113,13 +112,11 @@
       font-size: 1.1rem;
       margin-top: 20px;
       cursor: pointer;
-      transition: background 0.2s;
     }
     #error-screen .btn-reload:hover {
       background: #4a4a55;
     }
 
-    /* --- loading indicator (spinner) --- */
     #loading {
       position: fixed;
       bottom: 30px;
@@ -131,7 +128,6 @@
       padding: 12px 28px;
       border-radius: 60px;
       font-size: 1rem;
-      letter-spacing: 0.3px;
       z-index: 50;
       display: flex;
       align-items: center;
@@ -153,7 +149,6 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* --- "point at marker" prompt (hidden on detection) --- */
     #marker-prompt {
       position: fixed;
       bottom: 100px;
@@ -184,14 +179,12 @@
 </head>
 <body>
 
-  <!-- 1. PERMISSION OVERLAY (shown before camera prompt) -->
   <div id="permission-overlay">
     <h2>📷 Camera access</h2>
     <p>This experience needs camera access to work.<br>Please allow when prompted.</p>
     <button class="btn-primary" id="request-camera-btn">Start AR</button>
   </div>
 
-  <!-- 2. ERROR SCREEN (camera denied / no camera) -->
   <div id="error-screen">
     <h2>⚠️ Camera unavailable</h2>
     <p>We couldn't access your camera. This might be because you denied permission or your device doesn't have a camera.</p>
@@ -199,23 +192,21 @@
     <button class="btn-reload" id="reload-btn">🔄 Reload page</button>
   </div>
 
-  <!-- 3. LOADING INDICATOR (model & AR.js) -->
   <div id="loading" class="hidden">
     <div class="spinner"></div>
     <span>Loading AR …</span>
   </div>
 
-  <!-- 4. "POINT AT MARKER" PROMPT (hidden once detected) -->
   <div id="marker-prompt">📍 Point your camera at the Hiro marker</div>
 
-  <!-- 5. A-FRAME SCENE - NO arjs attribute here! We'll add it via JS after permission -->
+  <!-- 🔥 FIXED: Added background="color: black" to avoid white flash -->
   <a-scene
     id="ar-scene"
     embedded
+    background="color: black"
     renderer="logarithmicDepthBuffer: true;"
     vr-mode-ui="enabled: false"
   >
-    <!-- marker entity – will show when detected -->
     <a-marker id="hiro-marker">
       <!-- 
         Car model configuration.
@@ -230,8 +221,6 @@
         position="0 0.5 0"
       ></a-entity>
     </a-marker>
-
-    <!-- static camera (required by AR.js) -->
     <a-entity camera></a-entity>
   </a-scene>
 
@@ -239,79 +228,63 @@
     (function() {
       "use strict";
 
-      // --- DOM refs ---
       const permissionOverlay = document.getElementById('permission-overlay');
       const errorScreen = document.getElementById('error-screen');
       const loadingEl = document.getElementById('loading');
       const markerPrompt = document.getElementById('marker-prompt');
       const requestBtn = document.getElementById('request-camera-btn');
       const reloadBtn = document.getElementById('reload-btn');
-
-      // --- AR scene & marker ---
       const sceneEl = document.getElementById('ar-scene');
       const marker = document.getElementById('hiro-marker');
 
-      // --- state ---
       let markerDetected = false;
 
-      // --- reload handler ---
-      reloadBtn.addEventListener('click', function() {
-        window.location.reload();
-      });
+      reloadBtn.addEventListener('click', () => window.location.reload());
 
-      // --- Main: request camera, then start AR ---
       async function startAR() {
-        // show loading
         loadingEl.classList.remove('hidden');
 
         try {
-          // 1. Explicitly request camera to trigger permission prompt
+          // 1. Request camera – this triggers the permission prompt
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment' }
           });
-          // stop the stream immediately – AR.js will open its own
           stream.getTracks().forEach(t => t.stop());
 
-          // 2. Permission granted: hide overlay
+          // 2. Hide the overlay
           permissionOverlay.classList.add('hidden');
 
-          // 3. Now it's safe to add the arjs attribute and start AR.js
-          //    We use preset:hiro and explicitly tell it to use webcam.
-          sceneEl.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; preset: hiro;');
+          // 3. 🔥 CRITICAL FIX: Just set the attribute. DO NOT call .init() manually.
+          //    AR.js will auto-bootstrap itself cleanly.
+          sceneEl.setAttribute('arjs', 
+            'sourceType: webcam; ' +
+            'debugUIEnabled: false; ' +
+            'detectionMode: mono_and_matrix; ' +
+            'matrixCodeType: 3x3; ' +
+            'preset: hiro;'
+          );
 
-          // 4. Force AR.js to initialize (it auto-starts when attribute is set)
-          //    but we give it a microtask to let the attribute apply.
-          await new Promise(r => setTimeout(r, 50));
-          const arSystem = sceneEl.systems['arjs'];
-          if (arSystem) {
-            arSystem.init();
-          }
-
-          // 5. Set up marker detection to hide the prompt
+          // 4. Hide prompt when marker is found
           marker.addEventListener('markerFound', function onMarkerFound() {
             if (!markerDetected) {
               markerDetected = true;
               markerPrompt.classList.add('hidden');
-              // also hide loading if still visible
               loadingEl.classList.add('hidden');
             }
           });
 
-          // 6. Listen for model load to hide loading
+          // 5. Hide loading when model loads
           const modelEntity = document.querySelector('a-marker a-entity[gltf-model]');
           if (modelEntity) {
-            modelEntity.addEventListener('model-loaded', function() {
+            modelEntity.addEventListener('model-loaded', () => {
               loadingEl.classList.add('hidden');
             });
           }
 
-          // 7. Safety net: hide loading after 5s even if model load event never fires
-          setTimeout(() => {
-            loadingEl.classList.add('hidden');
-          }, 5000);
+          // 6. Safety net: hide loading after 5s
+          setTimeout(() => loadingEl.classList.add('hidden'), 5000);
 
         } catch (err) {
-          // Permission denied or no camera
           console.error('Camera error:', err);
           loadingEl.classList.add('hidden');
           errorScreen.classList.add('visible');
@@ -319,21 +292,19 @@
         }
       }
 
-      // --- Single click listener on the button ---
-      requestBtn.addEventListener('click', function(e) {
+      // Single click listener
+      requestBtn.addEventListener('click', (e) => {
         e.preventDefault();
         startAR();
       });
 
-      // --- On load, make sure the overlay is visible and everything else is hidden ---
+      // Initial UI state
       permissionOverlay.classList.remove('hidden');
       errorScreen.classList.remove('visible');
       loadingEl.classList.add('hidden');
       markerPrompt.classList.remove('hidden');
 
-      console.log('✅ Minimal AR car demo ready.');
-      console.log('📁 Place car.glb in the same folder as this file.');
-      console.log('🖱️ Click "Start AR" to request camera and begin.');
+      console.log('✅ AR ready. Click "Start AR" to begin.');
     })();
   </script>
 </body>
