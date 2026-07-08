@@ -3,217 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Marker AR · Car demo</title>
-
-  <!-- 🔥 FIXED: Use A-Frame 1.4.0 (stable with AR.js 2.2.4) -->
+  <title>Marker AR · Car</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- A-Frame & AR.js from CDN -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/ar.js@2.2.4/aframe/build/aframe-ar.min.js"></script>
-
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #000; /* fallback black */
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    }
-
-    /* Force canvas to be black initially */
-    #ar-scene {
-      background: #000 !important;
-    }
-
-    #permission-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(10, 10, 20, 0.85);
-      backdrop-filter: blur(4px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      padding: 2rem;
-      text-align: center;
-      color: #fff;
-      transition: opacity 0.3s ease;
-    }
-    #permission-overlay.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-    #permission-overlay h2 {
-      font-weight: 400;
-      font-size: 1.8rem;
-      margin-bottom: 0.5rem;
-      letter-spacing: 0.5px;
-    }
-    #permission-overlay p {
-      font-size: 1.2rem;
-      max-width: 400px;
-      opacity: 0.9;
-      margin: 0.5rem 0 1.5rem;
-    }
-    #permission-overlay .btn-primary {
-      background: #4a7cf7;
-      border: none;
-      color: white;
-      font-size: 1.3rem;
-      padding: 0.8rem 2.2rem;
-      border-radius: 60px;
-      cursor: pointer;
-      box-shadow: 0 8px 20px rgba(0,20,80,0.4);
-      transition: background 0.2s;
-      font-weight: 500;
-    }
-    #permission-overlay .btn-primary:hover {
-      background: #5f8cff;
-    }
-
-    #error-screen {
-      position: fixed;
-      inset: 0;
-      background: #18181e;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-      padding: 2rem;
-      text-align: center;
-      color: #f0f0f5;
-    }
-    #error-screen.visible {
-      display: flex;
-    }
-    #error-screen h2 {
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
-      color: #ff8a8a;
-    }
-    #error-screen p {
-      font-size: 1.1rem;
-      max-width: 400px;
-      opacity: 0.85;
-    }
-    #error-screen .hint {
-      background: #2a2a32;
-      padding: 0.8rem 1.5rem;
-      border-radius: 40px;
-      margin-top: 1.5rem;
-      font-size: 0.95rem;
-      color: #b0b0c0;
-    }
-    #error-screen .btn-reload {
-      background: #3a3a44;
-      border: none;
-      color: white;
-      padding: 12px 28px;
-      border-radius: 40px;
-      font-size: 1.1rem;
-      margin-top: 20px;
-      cursor: pointer;
-    }
-    #error-screen .btn-reload:hover {
-      background: #4a4a55;
-    }
-
-    #loading {
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(6px);
-      color: white;
-      padding: 12px 28px;
-      border-radius: 60px;
-      font-size: 1rem;
-      z-index: 50;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      pointer-events: none;
-      transition: opacity 0.4s;
-    }
-    #loading.hidden {
-      opacity: 0;
-    }
-    .spinner {
-      width: 24px;
-      height: 24px;
-      border: 3px solid rgba(255,255,255,0.2);
-      border-top: 3px solid #ffffff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    #marker-prompt {
-      position: fixed;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(4px);
-      color: #f0f0f0;
-      padding: 10px 24px;
-      border-radius: 50px;
-      font-size: 1rem;
-      border: 1px solid rgba(255,255,255,0.15);
-      z-index: 40;
-      pointer-events: none;
-      transition: opacity 0.5s;
-      white-space: nowrap;
-    }
-    #marker-prompt.hidden {
-      opacity: 0;
-    }
-
-    @media (max-width: 480px) {
-      #permission-overlay h2 { font-size: 1.5rem; }
-      #permission-overlay p { font-size: 1rem; }
-      #marker-prompt { font-size: 0.9rem; padding: 8px 18px; bottom: 80px; }
-    }
-  </style>
 </head>
 <body>
-
+  <!-- Permission overlay -->
   <div id="permission-overlay">
     <h2>📷 Camera access</h2>
     <p>This experience needs camera access to work.<br>Please allow when prompted.</p>
-    <button class="btn-primary" id="request-camera-btn">Start AR</button>
+    <button id="start-ar-btn">Start AR</button>
   </div>
 
+  <!-- Error screen -->
   <div id="error-screen">
     <h2>⚠️ Camera unavailable</h2>
-    <p>We couldn't access your camera. This might be because you denied permission or your device doesn't have a camera.</p>
-    <div class="hint">🔧 Re-enable camera in browser settings &amp; reload.</div>
-    <button class="btn-reload" id="reload-btn">🔄 Reload page</button>
+    <p>We couldn't access your camera. Permission denied or no camera found.</p>
+    <div class="hint">🔧 Re-enable in browser settings &amp; reload.</div>
+    <button id="reload-btn">🔄 Reload</button>
   </div>
 
+  <!-- Loading indicator -->
   <div id="loading" class="hidden">
     <div class="spinner"></div>
     <span>Loading AR …</span>
   </div>
 
+  <!-- Marker prompt -->
   <div id="marker-prompt">📍 Point your camera at the Hiro marker</div>
 
-  <!-- 🔥 FIXED: Added background="color: black" to avoid white flash -->
+  <!-- A-Frame scene – arjs attribute present but sourceType='none' initially -->
   <a-scene
     id="ar-scene"
     embedded
     background="color: black"
     renderer="logarithmicDepthBuffer: true;"
     vr-mode-ui="enabled: false"
+    arjs="sourceType: none; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; preset: hiro;"
   >
     <a-marker id="hiro-marker">
-      <!-- 
-        Car model configuration.
-        Put car.glb in the same folder as this HTML file.
-        These values are tuned for a typical car shape (wide/long).
-        Adjust freely.
-      -->
       <a-entity
         gltf-model="url(car.glb)"
         scale="0.8 0.8 0.8"
@@ -224,88 +54,6 @@
     <a-entity camera></a-entity>
   </a-scene>
 
-  <script>
-    (function() {
-      "use strict";
-
-      const permissionOverlay = document.getElementById('permission-overlay');
-      const errorScreen = document.getElementById('error-screen');
-      const loadingEl = document.getElementById('loading');
-      const markerPrompt = document.getElementById('marker-prompt');
-      const requestBtn = document.getElementById('request-camera-btn');
-      const reloadBtn = document.getElementById('reload-btn');
-      const sceneEl = document.getElementById('ar-scene');
-      const marker = document.getElementById('hiro-marker');
-
-      let markerDetected = false;
-
-      reloadBtn.addEventListener('click', () => window.location.reload());
-
-      async function startAR() {
-        loadingEl.classList.remove('hidden');
-
-        try {
-          // 1. Request camera – this triggers the permission prompt
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-          });
-          stream.getTracks().forEach(t => t.stop());
-
-          // 2. Hide the overlay
-          permissionOverlay.classList.add('hidden');
-
-          // 3. 🔥 CRITICAL FIX: Just set the attribute. DO NOT call .init() manually.
-          //    AR.js will auto-bootstrap itself cleanly.
-          sceneEl.setAttribute('arjs', 
-            'sourceType: webcam; ' +
-            'debugUIEnabled: false; ' +
-            'detectionMode: mono_and_matrix; ' +
-            'matrixCodeType: 3x3; ' +
-            'preset: hiro;'
-          );
-
-          // 4. Hide prompt when marker is found
-          marker.addEventListener('markerFound', function onMarkerFound() {
-            if (!markerDetected) {
-              markerDetected = true;
-              markerPrompt.classList.add('hidden');
-              loadingEl.classList.add('hidden');
-            }
-          });
-
-          // 5. Hide loading when model loads
-          const modelEntity = document.querySelector('a-marker a-entity[gltf-model]');
-          if (modelEntity) {
-            modelEntity.addEventListener('model-loaded', () => {
-              loadingEl.classList.add('hidden');
-            });
-          }
-
-          // 6. Safety net: hide loading after 5s
-          setTimeout(() => loadingEl.classList.add('hidden'), 5000);
-
-        } catch (err) {
-          console.error('Camera error:', err);
-          loadingEl.classList.add('hidden');
-          errorScreen.classList.add('visible');
-          permissionOverlay.classList.add('hidden');
-        }
-      }
-
-      // Single click listener
-      requestBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        startAR();
-      });
-
-      // Initial UI state
-      permissionOverlay.classList.remove('hidden');
-      errorScreen.classList.remove('visible');
-      loadingEl.classList.add('hidden');
-      markerPrompt.classList.remove('hidden');
-
-      console.log('✅ AR ready. Click "Start AR" to begin.');
-    })();
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
