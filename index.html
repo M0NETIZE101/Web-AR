@@ -2,58 +2,713 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Marker AR · Car</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- A-Frame & AR.js from CDN -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR Marker Experience</title>
+  
+  <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ar.js@2.2.4/aframe/build/aframe-ar.min.js"></script>
+  
+  <!-- AR.js -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+    }
+
+    /* ===== AR Scene ===== */
+    #ar-scene {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* ===== Permission Overlay ===== */
+    #permission-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 100;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 30px;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+
+    #permission-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .overlay-icon {
+      width: 120px;
+      height: 120px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+    }
+
+    .overlay-title {
+      color: #fff;
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .overlay-subtitle {
+      color: rgba(255,255,255,0.6);
+      font-size: 16px;
+      text-align: center;
+      max-width: 300px;
+      line-height: 1.5;
+    }
+
+    #start-ar-btn {
+      background: #e94560;
+      color: #fff;
+      border: none;
+      padding: 18px 50px;
+      font-size: 18px;
+      font-weight: 600;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 30px rgba(233, 69, 96, 0.4);
+    }
+
+    #start-ar-btn:hover {
+      background: #ff6b81;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(233, 69, 96, 0.5);
+    }
+
+    #start-ar-btn:active {
+      transform: translateY(0);
+    }
+
+    /* ===== Error Screen ===== */
+    #error-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 100;
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d1b3d 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 25px;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+
+    #error-screen.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: all;
+    }
+
+    .error-icon {
+      font-size: 70px;
+    }
+
+    .error-title {
+      color: #ff6b6b;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .error-message {
+      color: rgba(255,255,255,0.7);
+      font-size: 14px;
+      text-align: center;
+      max-width: 300px;
+      line-height: 1.6;
+    }
+
+    #reload-btn {
+      background: transparent;
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.3);
+      padding: 14px 40px;
+      font-size: 16px;
+      font-weight: 500;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #reload-btn:hover {
+      border-color: #fff;
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* ===== Loading Indicator ===== */
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    #loading:not(.hidden) {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: #e94560;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    /* ===== Marker Prompt ===== */
+    #marker-prompt {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #fff;
+      padding: 16px 30px;
+      border-radius: 50px;
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      white-space: nowrap;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    #marker-prompt.hidden {
+      opacity: 0;
+      transform: translateX(-50%) translateY(20px);
+      pointer-events: none;
+    }
+
+    /* ===== Crosshair ===== */
+    #crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 40;
+      width: 60px;
+      height: 60px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    #crosshair.visible {
+      opacity: 0.5;
+      visibility: visible;
+    }
+
+    #crosshair::before,
+    #crosshair::after {
+      content: '';
+      position: absolute;
+      background: #fff;
+    }
+
+    #crosshair::before {
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      transform: translateY(-50%);
+    }
+
+    #crosshair::after {
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      transform: translateX(-50%);
+    }
+
+    /* ===== Status Badge ===== */
+    #status-badge {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    #status-badge.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    #status-badge.searching {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+      border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+
+    #status-badge.found {
+      background: rgba(76, 175, 80, 0.2);
+      color: #4caf50;
+      border: 1px solid rgba(76, 175, 80, 0.3);
+    }
+  </style>
 </head>
 <body>
-  <!-- Permission overlay -->
+
+  <!-- ===== Permission Overlay ===== -->
   <div id="permission-overlay">
-    <h2>📷 Camera access</h2>
-    <p>This experience needs camera access to work.<br>Please allow when prompted.</p>
+    <div class="overlay-icon">📷</div>
+    <h1 class="overlay-title">AR Experience</h1>
+    <p class="overlay-subtitle">
+      This experience uses your camera to detect markers and display 3D content in augmented reality.
+    </p>
     <button id="start-ar-btn">Start AR</button>
   </div>
 
-  <!-- Error screen -->
+  <!-- ===== Error Screen ===== -->
   <div id="error-screen">
-    <h2>⚠️ Camera unavailable</h2>
-    <p>We couldn't access your camera. Permission denied or no camera found.</p>
-    <div class="hint">🔧 Re-enable in browser settings &amp; reload.</div>
-    <button id="reload-btn">🔄 Reload</button>
+    <div class="error-icon">⚠️</div>
+    <h2 class="error-title">Camera Access Required</h2>
+    <p class="error-message" id="error-message">
+      Please allow camera access to use this AR experience. You may need to update your browser permissions.
+    </p>
+    <button id="reload-btn">Try Again</button>
   </div>
 
-  <!-- Loading indicator -->
+  <!-- ===== Loading ===== -->
   <div id="loading" class="hidden">
     <div class="spinner"></div>
-    <span>Loading AR …</span>
+    <span class="loading-text">Initializing AR...</span>
   </div>
 
-  <!-- Marker prompt -->
-  <div id="marker-prompt">📍 Point your camera at the Hiro marker</div>
+  <!-- ===== Status Badge ===== -->
+  <div id="status-badge" class="searching">Searching...</div>
 
-  <!-- A-Frame scene – arjs attribute present but sourceType='none' initially -->
-  <a-scene
+  <!-- ===== Crosshair ===== -->
+  <div id="crosshair"></div>
+
+  <!-- ===== Marker Prompt ===== -->
+  <div id="marker-prompt">Point camera at Hiro marker</div>
+
+  <!-- ===== AR Scene (NO arjs attribute initially) ===== -->
+  <a-scene 
     id="ar-scene"
     embedded
-    background="color: black"
-    renderer="logarithmicDepthBuffer: true;"
     vr-mode-ui="enabled: false"
-    arjs="sourceType: none; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; preset: hiro;"
+    renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
+    loading-screen="enabled: false"
   >
-    <a-marker id="hiro-marker">
+    <!-- 3D Model Asset -->
+    <a-assets timeout="10000">
+      <a-asset-item id="car-model" src="car.glb"></a-asset-item>
+    </a-assets>
+
+    <!-- Hiro Marker -->
+    <a-marker 
+      id="hiro-marker" 
+      preset="hiro"
+      emitevents="true"
+      smooth="true"
+      smoothCount="5"
+      smoothTolerance="0.01"
+      smoothThreshold="2"
+    >
       <a-entity
-        gltf-model="url(car.glb)"
-        scale="0.8 0.8 0.8"
+        id="car-entity"
+        gltf-model="#car-model"
+        scale="0.1 0.1 0.1"
+        position="0 0.1 0"
         rotation="0 -90 0"
-        position="0 0.5 0"
+        animation-mixer="clip: *; loop: repeat"
       ></a-entity>
     </a-marker>
+
+    <!-- Camera -->
     <a-entity camera></a-entity>
   </a-scene>
 
-  <script src="app.js"></script>
+  <!-- ===== Application Logic ===== -->
+  <script>
+  (function() {
+    "use strict";
+
+    // ==========================================
+    // DOM References
+    // ==========================================
+    const overlay = document.getElementById('permission-overlay');
+    const errorScreen = document.getElementById('error-screen');
+    const errorMessage = document.getElementById('error-message');
+    const loading = document.getElementById('loading');
+    const loadingText = loading.querySelector('.loading-text');
+    const prompt = document.getElementById('marker-prompt');
+    const statusBadge = document.getElementById('status-badge');
+    const crosshair = document.getElementById('crosshair');
+    const startBtn = document.getElementById('start-ar-btn');
+    const reloadBtn = document.getElementById('reload-btn');
+    const scene = document.getElementById('ar-scene');
+
+    // ==========================================
+    // State
+    // ==========================================
+    let arStarted = false;
+    let markerVisible = false;
+    let modelLoaded = false;
+    let hideLoadingTimeout = null;
+
+    // ==========================================
+    // UI Helpers
+    // ==========================================
+    function showElement(el) {
+      el.classList.remove('hidden');
+    }
+
+    function hideElement(el) {
+      el.classList.add('hidden');
+    }
+
+    function setLoading(show, text) {
+      if (text) {
+        loadingText.textContent = text;
+      }
+      if (show) {
+        showElement(loading);
+      } else {
+        hideElement(loading);
+      }
+    }
+
+    function setStatus(type) {
+      statusBadge.className = type;
+      statusBadge.textContent = type === 'found' ? 'Marker Found' : 'Searching...';
+      showElement(statusBadge);
+    }
+
+    function hideStatus() {
+      hideElement(statusBadge);
+    }
+
+    function showError(customMessage) {
+      if (customMessage) {
+        errorMessage.textContent = customMessage;
+      }
+      errorScreen.classList.add('visible');
+      overlay.classList.add('hidden');
+      setLoading(false);
+      hideStatus();
+      hideElement(crosshair);
+    }
+
+    function safeHideLoading() {
+      if (hideLoadingTimeout) {
+        clearTimeout(hideLoadingTimeout);
+      }
+      hideLoadingTimeout = setTimeout(() => {
+        setLoading(false);
+      }, 3000);
+    }
+
+    // ==========================================
+    // Event Handlers
+    // ==========================================
+    reloadBtn.addEventListener('click', () => {
+      window.location.reload();
+    });
+
+    // ==========================================
+    // Check if AR is Supported
+    // ==========================================
+    function checkARSupport() {
+      // Check for required APIs
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not supported. Please use a modern browser.');
+      }
+
+      // Check if HTTPS (required for camera)
+      const isSecure = location.protocol === 'https:' || 
+                       location.hostname === 'localhost' || 
+                       location.hostname === '127.0.0.1';
+      if (!isSecure) {
+        throw new Error('Camera access requires HTTPS. Please use a secure connection.');
+      }
+    }
+
+    // ==========================================
+    // Request Camera Permission
+    // ==========================================
+    async function requestCameraPermission() {
+      setLoading(true, 'Requesting camera access...');
+
+      try {
+        // Request camera to trigger permission prompt
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+
+        // Immediately stop - AR.js will create its own stream
+        stream.getTracks().forEach(track => track.stop());
+        
+        return true;
+      } catch (err) {
+        console.error('Camera permission error:', err);
+        
+        if (err.name === 'NotAllowedError') {
+          throw new Error('Camera permission was denied. Please allow camera access in your browser settings and try again.');
+        } else if (err.name === 'NotFoundError') {
+          throw new Error('No camera found. Please connect a camera and try again.');
+        } else if (err.name === 'NotReadableError') {
+          throw new Error('Camera is already in use by another application.');
+        } else {
+          throw new Error('Could not access camera: ' + err.message);
+        }
+      }
+    }
+
+    // ==========================================
+    // Initialize AR.js
+    // ==========================================
+    function initializeAR() {
+      return new Promise((resolve, reject) => {
+        setLoading(true, 'Starting AR engine...');
+
+        // Set AR.js attributes with correct string format
+        scene.setAttribute('arjs', 
+          'sourceType: webcam; ' +
+          'debugUIEnabled: false; ' +
+          'detectionMode: mono_and_matrix; ' +
+          'matrixCodeType: 3x3; ' +
+          'preset: hiro; ' +
+          'patternRatio: 0.7'
+        );
+
+        // Wait for AR.js to initialize
+        const checkInterval = setInterval(() => {
+          const arSystem = scene.systems && scene.systems['arjs'];
+          if (arSystem) {
+            clearInterval(checkInterval);
+            resolve(arSystem);
+          }
+        }, 100);
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          reject(new Error('AR.js initialization timed out.'));
+        }, 10000);
+      });
+    }
+
+    // ==========================================
+    // Setup Marker Events
+    // ==========================================
+    function setupMarkerEvents() {
+      const marker = document.getElementById('hiro-marker');
+      if (!marker) {
+        console.warn('Marker element not found');
+        return;
+      }
+
+      marker.addEventListener('markerFound', () => {
+        console.log('✅ Marker found');
+        markerVisible = true;
+        
+        // Update UI
+        hideElement(prompt);
+        setStatus('found');
+        setLoading(false);
+      });
+
+      marker.addEventListener('markerLost', () => {
+        console.log('❌ Marker lost');
+        markerVisible = false;
+        
+        // Update UI
+        if (!modelLoaded) {
+          showElement(prompt);
+        }
+        setStatus('searching');
+      });
+    }
+
+    // ==========================================
+    // Setup Model Events
+    // ==========================================
+    function setupModelEvents() {
+      const model = document.getElementById('car-entity');
+      if (!model) {
+        console.warn('Model element not found');
+        safeHideLoading();
+        return;
+      }
+
+      // Check if already loaded
+      if (model.hasLoaded) {
+        onModelLoaded();
+        return;
+      }
+
+      model.addEventListener('model-loaded', onModelLoaded);
+      model.addEventListener('model-error', onModelError);
+    }
+
+    function onModelLoaded() {
+      console.log('✅ Model loaded');
+      modelLoaded = true;
+      setLoading(false);
+    }
+
+    function onModelError(err) {
+      console.error('❌ Model load error:', err);
+      setLoading(false);
+      // Don't show error screen - AR still works, just no model
+    }
+
+    // ==========================================
+    // Main Start Function
+    // ==========================================
+    async function startAR() {
+      if (arStarted) return;
+      arStarted = true;
+
+      try {
+        // Step 1: Check support
+        checkARSupport();
+
+        // Step 2: Request camera permission
+        await requestCameraPermission();
+
+        // Step 3: Hide overlay
+        overlay.classList.add('hidden');
+
+        // Step 4: Show crosshair and status
+        crosshair.classList.add('visible');
+        setStatus('searching');
+
+        // Step 5: Initialize AR.js
+        const arSystem = await initializeAR();
+        console.log('✅ AR.js initialized');
+
+        // Step 6: Setup event listeners
+        setupMarkerEvents();
+        setupModelEvents();
+
+        // Step 7: Safety timeout for loading
+        safeHideLoading();
+
+      } catch (err) {
+        console.error('❌ AR start error:', err);
+        showError(err.message);
+      }
+    }
+
+    // ==========================================
+    // Button Handler
+    // ==========================================
+    startBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      startAR();
+    });
+
+    // ==========================================
+    // Handle Page Visibility
+    // ==========================================
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        // Pause when tab is hidden
+        console.log('Page hidden');
+      } else {
+        console.log('Page visible');
+      }
+    });
+
+    // ==========================================
+    // Initial State
+    // ==========================================
+    function init() {
+      overlay.classList.remove('hidden');
+      errorScreen.classList.remove('visible');
+      setLoading(false);
+      showElement(prompt);
+      hideStatus();
+      crosshair.classList.remove('visible');
+
+      console.log('✅ AR App Ready');
+      console.log('📁 Expected asset: car.glb');
+      console.log('🎯 Marker: Hiro pattern');
+    }
+
+    // Run initialization
+    init();
+
+  })();
+  </script>
+
 </body>
 </html>
