@@ -17,16 +17,38 @@
       color: white;
       text-shadow: 0 0 20px rgba(0,0,0,0.9);
       z-index: 10;
-      font-size: 1rem;
-      background: rgba(0,0,0,0.5);
-      padding: 15px;
+      font-size: 0.9rem;
+      background: rgba(0,0,0,0.6);
+      padding: 12px;
       backdrop-filter: blur(5px);
       pointer-events: none;
     }
-    #info a {
-      color: #88ddff;
+    #info a { color: #88ddff; pointer-events: auto; text-decoration: none; }
+    #controls {
+      position: absolute;
+      bottom: 100px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      z-index: 10;
+      pointer-events: none;
+    }
+    #controls button {
       pointer-events: auto;
-      text-decoration: none;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 12px 24px;
+      margin: 5px;
+      border-radius: 30px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    #controls button:active {
+      transform: scale(0.95);
+      background: rgba(255,255,255,0.3);
     }
     #loading {
       position: absolute;
@@ -34,7 +56,6 @@
       left: 50%;
       transform: translate(-50%, -50%);
       color: white;
-      font-size: 1.5rem;
       background: rgba(0,0,0,0.7);
       padding: 20px 40px;
       border-radius: 10px;
@@ -43,7 +64,7 @@
     }
     .loader {
       border: 4px solid #f3f3f3;
-      border-top: 4px solid #3498db;
+      border-top: 4px solid #ff6b6b;
       border-radius: 50%;
       width: 40px;
       height: 40px;
@@ -58,10 +79,17 @@
 </head>
 <body>
 
-  <!-- Loading indicator -->
   <div id="loading">
     <div class="loader"></div>
     Loading your car...
+  </div>
+
+  <div id="controls">
+    <button onclick="changeColor('red')">🔴 Red</button>
+    <button onclick="changeColor('blue')">🔵 Blue</button>
+    <button onclick="changeColor('green')">🟢 Green</button>
+    <button onclick="changeColor('gold')">⭐ Gold</button>
+    <button onclick="toggleSpin()">🔄 Spin</button>
   </div>
 
   <a-scene 
@@ -71,18 +99,22 @@
     renderer="logarithmicDepthBuffer: true;"
   >
     
-    <!-- HIRO Marker with your car -->
+    <!-- Lighting -->
+    <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="1.0" position="2 5 3"></a-light>
+    <a-light type="directional" color="#ffccaa" intensity="0.6" position="-2 3 -1"></a-light>
+    
+    <!-- HIRO Marker -->
     <a-marker type="pattern" url="https://raw.githack.com/AR-js-org/AR.js/master/data/data/patt.hiro">
       
-      <!-- YOUR CAR GLB MODEL from assets/models/car.glb -->
-      <a-entity 
+      <!-- Your Car -->
+      <a-entity id="car" 
         gltf-model="url(assets/models/car.glb)"
         scale="0.5 0.5 0.5"
         position="0 0 0"
         rotation="0 0 0"
       >
-        <!-- Slow rotation animation -->
-        <a-animation 
+        <a-animation id="spinAnim" 
           attribute="rotation" 
           from="0 0 0" 
           to="0 360 0" 
@@ -92,10 +124,15 @@
         ></a-animation>
       </a-entity>
       
-      <!-- Shadow/ground plane -->
-      <a-circle color="#333" opacity="0.3" radius="0.8" position="0 0 0" rotation="-90 0 0"></a-circle>
+      <!-- Showroom ground -->
+      <a-circle color="#333" opacity="0.4" radius="1.2" position="0 0 0" rotation="-90 0 0" material="metalness: 0.5; roughness: 0.3"></a-circle>
       
-      <!-- Floating text -->
+      <!-- Glow ring -->
+      <a-torus color="#ff6b6b" radius="0.9" arc="360" position="0 0.01 0" rotation="90 0 0" material="emissive: #ff6b6b; emissiveIntensity: 0.3; transparent: true; opacity: 0.6">
+        <a-animation attribute="rotation" from="0 0 0" to="0 360 0" dur="5000" repeat="indefinite"></a-animation>
+      </a-torus>
+      
+      <!-- Title -->
       <a-text value="🚗 My Dream Car" color="white" position="0 1.2 0" scale="0.4 0.4 0.4" align="center"></a-text>
       
     </a-marker>
@@ -104,12 +141,38 @@
   </a-scene>
 
   <div id="info">
-    📸 Scan the <strong>HIRO marker</strong> to see your car in AR!<br>
-    <span style="opacity:0.7; font-size:0.8rem;">👉 <a href="https://raw.githack.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Download HIRO marker</a></span>
+    📸 Scan the <strong>HIRO marker</strong> • Tap buttons below to customize!<br>
+    <span style="opacity:0.6; font-size:0.8rem;">👉 <a href="https://raw.githack.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Download HIRO marker</a></span>
   </div>
 
   <script>
-    // Hide loading indicator when the scene is ready
+    let isSpinning = true;
+    let carColor = 'white';
+    
+    // Change car color
+    function changeColor(color) {
+      const car = document.getElementById('car');
+      if (car) {
+        car.setAttribute('material', `color: ${color}; emissive: ${color}; emissiveIntensity: 0.1`);
+        carColor = color;
+      }
+    }
+    
+    // Toggle spin animation
+    function toggleSpin() {
+      const spinAnim = document.getElementById('spinAnim');
+      if (spinAnim) {
+        if (isSpinning) {
+          spinAnim.pause();
+          isSpinning = false;
+        } else {
+          spinAnim.play();
+          isSpinning = true;
+        }
+      }
+    }
+    
+    // Hide loading
     document.addEventListener('DOMContentLoaded', () => {
       const scene = document.querySelector('a-scene');
       if (scene) {
@@ -117,8 +180,6 @@
           document.getElementById('loading').style.display = 'none';
         });
       }
-      
-      // Fallback: hide loading after 10 seconds even if not loaded
       setTimeout(() => {
         document.getElementById('loading').style.display = 'none';
       }, 10000);
