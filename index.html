@@ -10,60 +10,70 @@
 
   <style>
     * {
-      margin: 0;
-      padding: 0;
+      margin: 0 !important;
+      padding: 0 !important;
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* 
-      CRITICAL ANDROID FIX 
-      Force everything to strict fullscreen. 
-      Prevents A-Frame from miscalculating height.
-    */
+    /* LOCK BODY TO FULL SCREEN */
     html, body {
-      width: 100vw !important;
-      height: 100vh !important;
+      width: 100% !important;
+      height: 100% !important;
       overflow: hidden !important;
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
+      background: #000 !important;
     }
 
-    /* Hide A-Frame VR/Rotation UI */
-    .a-enter-vr, .a-orientation-modal { display: none !important; }
+    /* HIDE A-FRAME UI */
+    .a-enter-vr, .a-orientation-modal { 
+      display: none !important; 
+    }
 
     /* 
-      CRITICAL ANDROID FIX 
-      Force the 3D canvas to be fullscreen 
+      ==========================================
+      CRITICAL FULLSCREEN FIX FOR ANDROID/iOS
+      ========================================== 
     */
-    .a-scene,
-    .a-scene .a-canvas,
+    
+    /* 1. Force the A-Frame scene container to fill screen */
+    .a-scene {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      z-index: 1 !important;
+    }
+
+    /* 2. Force the WebGL 3D canvas to fill screen */
+    .a-canvas, 
     .a-scene canvas {
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
+      width: 100% !important;
+      height: 100% !important;
       z-index: 1 !important;
     }
 
     /* 
-      CRITICAL ANDROID FIX 
-      Force AR.js video background to be fullscreen.
-      Without this, the video sits at 640x480 in the top-left corner.
+      3. Force AR.js background video to fill screen.
+      DO NOT add "object-fit: cover" here, or your 3D model 
+      will be misaligned with the marker! 
     */
     video {
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
+      width: 100% !important;
+      height: 100% !important;
       z-index: 0 !important;
-      /* Do NOT use object-fit: cover, it crops the video and breaks marker tracking */
     }
 
-    /* ===== Overlay ===== */
+    /* ===== Overlay UI ===== */
     #overlay {
       position: fixed;
       inset: 0;
@@ -94,15 +104,16 @@
     .btn {
       border: none; width: 100%; max-width: 280px;
       padding: 15px; font-size: 15px; font-weight: 600;
-      border-radius: 12px; cursor: pointer; -webkit-appearance: none;
+      border-radius: 12px; cursor: pointer;
       margin-top: 8px;
+      appearance: none;
+      -webkit-appearance: none;
     }
 
     .btn-primary { background: #6C5CE7; color: #fff; }
     .btn-primary:active { opacity: 0.8; }
-    .btn-primary:disabled { background: #4a3fb5; opacity: 0.6; }
 
-    /* ===== Error ===== */
+    /* ===== Error UI ===== */
     #error {
       position: fixed; inset: 0; z-index: 1000;
       background: #0a0a1a;
@@ -115,7 +126,7 @@
     #error p { color: rgba(255,255,255,0.55); font-size: 12px; text-align: center; max-width: 260px; line-height: 1.6; white-space: pre-line; }
     .btn-secondary { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.2); max-width: 220px; }
 
-    /* ===== Loading ===== */
+    /* ===== Loading UI ===== */
     #loading {
       position: fixed; inset: 0; z-index: 500;
       background: rgba(0,0,0,0.6);
@@ -133,7 +144,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     #loading span { color: #fff; font-size: 12px; }
 
-    /* ===== Prompt ===== */
+    /* ===== Prompt UI ===== */
     #prompt {
       position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
       z-index: 100; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
@@ -149,7 +160,7 @@
   <div id="overlay">
     <div class="icon-box">📷</div>
     <h1>AR Viewer</h1>
-    <p class="desc">Scan a Hiro marker to view 3D content in augmented reality.</p>
+    <p class="desc">Scan a Hiro marker to view your 3D car model.</p>
     <button id="start-btn" class="btn btn-primary">Start Camera</button>
   </div>
 
@@ -170,8 +181,6 @@
   <!-- Marker Prompt -->
   <div id="prompt" class="hidden">Scan Hiro marker</div>
 
-  <!-- NO SCENE IN HTML -->
-
   <script>
   (function() {
     "use strict";
@@ -191,9 +200,7 @@
       loadTxt.textContent = text || 'Loading...';
       loading.classList.add('visible');
     }
-
     function hideLoading() { loading.classList.remove('visible'); }
-
     function showError(msg) {
       errMsg.textContent = msg;
       error.classList.add('visible');
@@ -202,13 +209,12 @@
     }
 
     // ==========================================
-    // CREATE SCENE DYNAMICALLY
+    // DYNAMIC SCENE CREATION
     // ==========================================
     function createScene() {
       const scene = document.createElement('a-scene');
       
-      // 'embedded' is CRITICAL here. It tells A-Frame NOT to apply its 
-      // buggy fullscreen JS, letting our strict CSS take over instead.
+      // 'embedded' prevents A-Frame from messing up mobile layouts
       scene.setAttribute('embedded', '');
       scene.setAttribute('vr-mode-ui', 'enabled: false');
       scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; alpha: true; precision: mediump');
@@ -217,13 +223,16 @@
         'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; preset: hiro'
       );
 
+      // Ensure your car.glb file is exactly named this and in the same folder
       scene.innerHTML = `
         <a-assets timeout="15000">
           <a-asset-item id="car-model" src="car.glb"></a-asset-item>
         </a-assets>
+        
         <a-marker id="ar-marker" preset="hiro" emitevents="true" smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="5">
           <a-entity id="car-entity" gltf-model="#car-model" scale="0.1 0.1 0.1" position="0 0.15 0" rotation="0 -90 0"></a-entity>
         </a-marker>
+        
         <a-entity camera></a-entity>
       `;
 
@@ -232,26 +241,21 @@
     }
 
     // ==========================================
-    // RELAXED WAIT FOR AR (Fixes Camera Error)
+    // WAIT FOR AR SYSTEM
     // ==========================================
     function waitForAR(scene, timeout) {
       return new Promise((resolve, reject) => {
         const start = Date.now();
-        
         function check() {
-          // Just check if the system registered. 
-          // DON'T dig into _arVideoSource (causes silent crashes on some Android versions)
           if (scene.systems && scene.systems['arjs']) {
-            // Give it a brief moment to actually open the camera stream
-            setTimeout(() => resolve(scene.systems['arjs']), 800);
+            // Give camera hardware 1 second to actually start streaming
+            setTimeout(() => resolve(scene.systems['arjs']), 1000);
             return;
           }
-          
           if (Date.now() - start > timeout) {
-            reject(new Error('Camera initialization timed out'));
+            reject(new Error('Camera timed out. Close other apps using the camera and reload.'));
             return;
           }
-          
           requestAnimationFrame(check);
         }
         check();
@@ -276,18 +280,19 @@
       const model = document.getElementById('car-entity');
       if (model) {
         model.addEventListener('model-loaded', hideLoading);
-        model.addEventListener('model-error', () => { hideLoading(); prompt.classList.remove('hidden'); });
+        model.addEventListener('model-error', () => { 
+          hideLoading(); 
+          prompt.classList.remove('hidden'); 
+        });
       }
 
-      // Force AR.js to recalculate sizes after fully loaded (Fixes half-screen)
+      // Force screen resize fix after scene loads
       scene.addEventListener('loaded', () => {
-        setTimeout(() => {
-          window.dispatchEvent(new Event('resize'));
-        }, 100);
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 200);
       });
 
       scene.addEventListener('camera-error', () => {
-        showError('Camera permission denied.\n\nPlease allow camera access in your browser settings and reload.');
+        showError('Camera permission denied.\n\nPlease allow camera in your browser settings and reload.');
       });
     }
 
@@ -301,26 +306,19 @@
       startBtn.textContent = 'Starting...';
 
       try {
-        // 1. Check HTTPS
         if (location.protocol !== 'https:' && !['localhost', '127.0.0.1', ''].includes(location.hostname)) {
-          throw new Error('HTTPS required. Please access via a secure URL.');
+          throw new Error('HTTPS required. Please use a secure URL.');
         }
 
-        // 2. Hide overlay
         overlay.classList.add('hidden');
         showLoading('Requesting camera...');
 
-        // 3. Create scene (triggers AR.js init inside user gesture)
         const scene = createScene();
-
-        // 4. Setup listeners
         setupEvents(scene);
 
-        // 5. Wait for AR
         showLoading('Initializing AR...');
         await waitForAR(scene, 15000);
 
-        // 6. Done
         showLoading('Looking for marker...');
         prompt.classList.remove('hidden');
         setTimeout(hideLoading, 4000);
@@ -332,12 +330,12 @@
     }
 
     // ==========================================
-    // LISTENERS & INIT
+    // LISTENERS
     // ==========================================
     startBtn.addEventListener('click', (e) => { e.preventDefault(); start(); });
     retryBtn.addEventListener('click', () => location.reload());
 
-    // Prevent Android zoom
+    // Prevent Android zoom gestures
     document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
     document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
