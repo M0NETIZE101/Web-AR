@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="mobile-web-app-capable" content="yes">
   <title>AR Viewer</title>
 
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -17,19 +16,51 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    /* 
+      CRITICAL ANDROID FIX 
+      Force everything to strict fullscreen. 
+      Prevents A-Frame from miscalculating height.
+    */
     html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #000;
-      position: fixed;
-      top: 0;
-      left: 0;
+      width: 100vw !important;
+      height: 100vh !important;
+      overflow: hidden !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
     }
 
-    .a-enter-vr,
-    .a-orientation-modal {
-      display: none !important;
+    /* Hide A-Frame VR/Rotation UI */
+    .a-enter-vr, .a-orientation-modal { display: none !important; }
+
+    /* 
+      CRITICAL ANDROID FIX 
+      Force the 3D canvas to be fullscreen 
+    */
+    .a-scene,
+    .a-scene .a-canvas,
+    .a-scene canvas {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 1 !important;
+    }
+
+    /* 
+      CRITICAL ANDROID FIX 
+      Force AR.js video background to be fullscreen.
+      Without this, the video sits at 640x480 in the top-left corner.
+    */
+    video {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 0 !important;
+      /* Do NOT use object-fit: cover, it crops the video and breaks marker tracking */
     }
 
     /* ===== Overlay ===== */
@@ -47,197 +78,79 @@
       transition: opacity 0.4s ease;
     }
 
-    #overlay.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
+    #overlay.hidden { opacity: 0; pointer-events: none; }
 
     .icon-box {
-      width: 90px;
-      height: 90px;
+      width: 90px; height: 90px;
       background: rgba(255,255,255,0.06);
       border-radius: 20px;
-      display: grid;
-      place-items: center;
+      display: grid; place-items: center;
       font-size: 44px;
     }
 
-    h1 {
-      color: #fff;
-      font-size: 22px;
-      font-weight: 700;
-    }
+    h1 { color: #fff; font-size: 22px; font-weight: 700; }
+    .desc { color: rgba(255,255,255,0.45); font-size: 13px; text-align: center; max-width: 260px; line-height: 1.6; }
 
-    .desc {
-      color: rgba(255,255,255,0.45);
-      font-size: 13px;
-      text-align: center;
-      max-width: 260px;
-      line-height: 1.6;
-    }
-
-    .btn-primary {
-      background: #6C5CE7;
-      color: #fff;
-      border: none;
-      width: 100%;
-      max-width: 280px;
-      padding: 15px;
-      font-size: 15px;
-      font-weight: 600;
-      border-radius: 12px;
-      cursor: pointer;
-      -webkit-appearance: none;
+    .btn {
+      border: none; width: 100%; max-width: 280px;
+      padding: 15px; font-size: 15px; font-weight: 600;
+      border-radius: 12px; cursor: pointer; -webkit-appearance: none;
       margin-top: 8px;
     }
 
-    .btn-primary:active {
-      opacity: 0.8;
-    }
-
-    .btn-primary:disabled {
-      background: #4a3fb5;
-      opacity: 0.6;
-    }
+    .btn-primary { background: #6C5CE7; color: #fff; }
+    .btn-primary:active { opacity: 0.8; }
+    .btn-primary:disabled { background: #4a3fb5; opacity: 0.6; }
 
     /* ===== Error ===== */
     #error {
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
+      position: fixed; inset: 0; z-index: 1000;
       background: #0a0a1a;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      padding: 24px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.4s ease;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; padding: 24px;
+      opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
     }
-
-    #error.visible {
-      opacity: 1;
-      pointer-events: all;
-    }
-
-    #error h2 {
-      color: #ff6b6b;
-      font-size: 18px;
-    }
-
-    #error p {
-      color: rgba(255,255,255,0.55);
-      font-size: 12px;
-      text-align: center;
-      max-width: 260px;
-      line-height: 1.6;
-    }
-
-    .btn-secondary {
-      background: transparent;
-      color: #fff;
-      border: 1.5px solid rgba(255,255,255,0.2);
-      width: 100%;
-      max-width: 220px;
-      padding: 13px;
-      font-size: 14px;
-      border-radius: 12px;
-      cursor: pointer;
-      -webkit-appearance: none;
-      margin-top: 8px;
-    }
+    #error.visible { opacity: 1; pointer-events: all; }
+    #error h2 { color: #ff6b6b; font-size: 18px; }
+    #error p { color: rgba(255,255,255,0.55); font-size: 12px; text-align: center; max-width: 260px; line-height: 1.6; white-space: pre-line; }
+    .btn-secondary { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.2); max-width: 220px; }
 
     /* ===== Loading ===== */
     #loading {
-      position: fixed;
-      inset: 0;
-      z-index: 500;
+      position: fixed; inset: 0; z-index: 500;
       background: rgba(0,0,0,0.6);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
     }
-
-    #loading.visible {
-      opacity: 1;
-      pointer-events: all;
-    }
-
+    #loading.visible { opacity: 1; pointer-events: all; }
     .spin {
-      width: 36px;
-      height: 36px;
+      width: 36px; height: 36px;
       border: 3px solid rgba(255,255,255,0.1);
       border-top-color: #6C5CE7;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    #loading span {
-      color: #fff;
-      font-size: 12px;
-    }
+    #loading span { color: #fff; font-size: 12px; }
 
     /* ===== Prompt ===== */
     #prompt {
-      position: fixed;
-      bottom: 50px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 100;
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      color: #fff;
-      padding: 10px 22px;
-      border-radius: 30px;
-      font-size: 12px;
-      border: 1px solid rgba(255,255,255,0.08);
-      transition: all 0.3s ease;
+      position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
+      z-index: 100; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+      color: #fff; padding: 10px 22px; border-radius: 30px; font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.08); transition: all 0.3s ease;
     }
-
-    #prompt.hidden {
-      opacity: 0;
-      transform: translateX(-50%) translateY(15px);
-      pointer-events: none;
-    }
-
-    /* ===== Debug ===== */
-    #dbg {
-      position: fixed;
-      top: 8px;
-      left: 8px;
-      z-index: 9999;
-      color: #0f0;
-      font: 10px/1.4 monospace;
-      background: rgba(0,0,0,0.8);
-      padding: 6px 8px;
-      border-radius: 4px;
-      max-width: 180px;
-      word-break: break-all;
-      display: none;
-    }
+    #prompt.hidden { opacity: 0; transform: translateX(-50%) translateY(15px); pointer-events: none; }
   </style>
 </head>
 <body>
-
-  <!-- Debug: change to display:block to see logs -->
-  <div id="dbg"></div>
 
   <!-- Permission Overlay -->
   <div id="overlay">
     <div class="icon-box">📷</div>
     <h1>AR Viewer</h1>
     <p class="desc">Scan a Hiro marker to view 3D content in augmented reality.</p>
-    <button id="start-btn" class="btn-primary">Start Camera</button>
+    <button id="start-btn" class="btn btn-primary">Start Camera</button>
   </div>
 
   <!-- Error Screen -->
@@ -245,7 +158,7 @@
     <div class="icon-box">⚠️</div>
     <h2>Camera Error</h2>
     <p id="err-msg">Could not access the camera.</p>
-    <button id="retry-btn" class="btn-secondary">Try Again</button>
+    <button id="retry-btn" class="btn btn-secondary">Try Again</button>
   </div>
 
   <!-- Loading -->
@@ -257,27 +170,12 @@
   <!-- Marker Prompt -->
   <div id="prompt" class="hidden">Scan Hiro marker</div>
 
-  <!-- 
-    NO SCENE IN HTML - Created dynamically!
-    This is the key fix for Android.
-  -->
+  <!-- NO SCENE IN HTML -->
 
   <script>
   (function() {
     "use strict";
 
-    // ==========================================
-    // DEBUG
-    // ==========================================
-    const dbg = document.getElementById('dbg');
-    function log(m) {
-      console.log('[AR]', m);
-      dbg.textContent += m + '\n';
-    }
-
-    // ==========================================
-    // DOM
-    // ==========================================
     const overlay  = document.getElementById('overlay');
     const error    = document.getElementById('error');
     const errMsg   = document.getElementById('err-msg');
@@ -289,17 +187,12 @@
 
     let started = false;
 
-    // ==========================================
-    // UI HELPERS
-    // ==========================================
     function showLoading(text) {
       loadTxt.textContent = text || 'Loading...';
       loading.classList.add('visible');
     }
 
-    function hideLoading() {
-      loading.classList.remove('visible');
-    }
+    function hideLoading() { loading.classList.remove('visible'); }
 
     function showError(msg) {
       errMsg.textContent = msg;
@@ -309,185 +202,92 @@
     }
 
     // ==========================================
-    // CREATE AR SCENE DYNAMICALLY
+    // CREATE SCENE DYNAMICALLY
     // ==========================================
     function createScene() {
-      log('Creating scene...');
-
       const scene = document.createElement('a-scene');
       
-      // Set ALL attributes before adding to DOM
+      // 'embedded' is CRITICAL here. It tells A-Frame NOT to apply its 
+      // buggy fullscreen JS, letting our strict CSS take over instead.
+      scene.setAttribute('embedded', '');
       scene.setAttribute('vr-mode-ui', 'enabled: false');
-      scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; antialias: true; alpha: true; precision: mediump');
+      scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; alpha: true; precision: mediump');
       scene.setAttribute('loading-screen', 'enabled: false');
       scene.setAttribute('arjs', 
-        'sourceType: webcam; ' +
-        'debugUIEnabled: false; ' +
-        'detectionMode: mono_and_matrix; ' +
-        'matrixCodeType: 3x3; ' +
-        'preset: hiro; ' +
-        'patternRatio: 0.7'
+        'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; preset: hiro'
       );
 
-      // Build inner HTML
       scene.innerHTML = `
         <a-assets timeout="15000">
           <a-asset-item id="car-model" src="car.glb"></a-asset-item>
         </a-assets>
-
-        <a-marker
-          id="ar-marker"
-          preset="hiro"
-          emitevents="true"
-          smooth="true"
-          smoothCount="5"
-          smoothTolerance="0.01"
-          smoothThreshold="5"
-        >
-          <a-entity
-            id="car-entity"
-            gltf-model="#car-model"
-            scale="0.1 0.1 0.1"
-            position="0 0.15 0"
-            rotation="0 -90 0"
-          ></a-entity>
+        <a-marker id="ar-marker" preset="hiro" emitevents="true" smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="5">
+          <a-entity id="car-entity" gltf-model="#car-model" scale="0.1 0.1 0.1" position="0 0.15 0" rotation="0 -90 0"></a-entity>
         </a-marker>
-
         <a-entity camera></a-entity>
       `;
 
-      // Add to DOM
       document.body.appendChild(scene);
-      
-      log('Scene added to DOM');
       return scene;
     }
 
     // ==========================================
-    // WAIT FOR AR TO BE READY
+    // RELAXED WAIT FOR AR (Fixes Camera Error)
     // ==========================================
     function waitForAR(scene, timeout) {
       return new Promise((resolve, reject) => {
         const start = Date.now();
         
         function check() {
-          const elapsed = Date.now() - start;
-          
-          // Get AR system
-          const arjs = scene.systems && scene.systems['arjs'];
-          
-          if (arjs) {
-            log('AR system found at ' + elapsed + 'ms');
-            
-            // On Android, verify video is actually streaming
-            const isAndroid = /Android/i.test(navigator.userAgent);
-            
-            if (isAndroid) {
-              // Check multiple possible video locations
-              let video = null;
-              
-              if (arjs._arVideoSource && arjs._arVideoSource.video) {
-                video = arjs._arVideoSource.video;
-              } else if (arjs.video) {
-                video = arjs.video;
-              } else if (scene.canvas && scene.canvas._arVideoSource) {
-                video = scene.canvas._arVideoSource.video;
-              }
-              
-              if (video) {
-                log('Video element found, readyState: ' + video.readyState);
-                
-                if (video.readyState >= 2 || video.videoWidth > 0) {
-                  log('AR fully ready (Android)');
-                  resolve(arjs);
-                  return;
-                }
-                // Video exists but not playing yet, keep waiting
-              } else {
-                log('Video not found yet, keep waiting...');
-              }
-            } else {
-              // Non-Android: system exists = ready
-              resolve(arjs);
-              return;
-            }
+          // Just check if the system registered. 
+          // DON'T dig into _arVideoSource (causes silent crashes on some Android versions)
+          if (scene.systems && scene.systems['arjs']) {
+            // Give it a brief moment to actually open the camera stream
+            setTimeout(() => resolve(scene.systems['arjs']), 800);
+            return;
           }
           
-          // Timeout check
-          if (elapsed > timeout) {
-            log('TIMEOUT after ' + elapsed + 'ms');
-            
-            // Debug info
-            if (arjs) {
-              log('AR system exists but video may not be ready');
-              log('Keys: ' + Object.keys(arjs).join(', '));
-            } else {
-              log('AR system does NOT exist');
-              log('Scene systems: ' + Object.keys(scene.systems || {}).join(', '));
-            }
-            
+          if (Date.now() - start > timeout) {
             reject(new Error('Camera initialization timed out'));
             return;
           }
           
-          // Check again next frame
           requestAnimationFrame(check);
         }
-        
         check();
       });
     }
 
     // ==========================================
-    // SETUP EVENTS AFTER SCENE EXISTS
+    // SETUP EVENTS
     // ==========================================
     function setupEvents(scene) {
-      // Marker events
       const marker = document.getElementById('ar-marker');
       if (marker) {
         marker.addEventListener('markerFound', () => {
-          log('MARKER FOUND');
           prompt.classList.add('hidden');
           hideLoading();
         });
-
         marker.addEventListener('markerLost', () => {
-          log('MARKER LOST');
           prompt.classList.remove('hidden');
         });
-      } else {
-        log('WARNING: marker not found');
       }
 
-      // Model events
       const model = document.getElementById('car-entity');
       if (model) {
-        model.addEventListener('model-loaded', () => {
-          log('MODEL LOADED');
-          hideLoading();
-        });
-
-        model.addEventListener('model-error', (e) => {
-          log('MODEL ERROR: ' + JSON.stringify(e.detail || e));
-          hideLoading();
-          prompt.classList.remove('hidden');
-        });
-
-        // Already loaded?
-        if (model.hasLoaded) {
-          log('MODEL ALREADY LOADED');
-          hideLoading();
-        }
+        model.addEventListener('model-loaded', hideLoading);
+        model.addEventListener('model-error', () => { hideLoading(); prompt.classList.remove('hidden'); });
       }
 
-      // Scene camera events
-      scene.addEventListener('camera-init', () => {
-        log('CAMERA INIT (scene event)');
+      // Force AR.js to recalculate sizes after fully loaded (Fixes half-screen)
+      scene.addEventListener('loaded', () => {
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+        }, 100);
       });
 
-      scene.addEventListener('camera-error', (e) => {
-        log('CAMERA ERROR (scene event)');
-        showError('Camera access failed. Check browser permissions.');
+      scene.addEventListener('camera-error', () => {
+        showError('Camera permission denied.\n\nPlease allow camera access in your browser settings and reload.');
       });
     }
 
@@ -497,87 +297,49 @@
     async function start() {
       if (started) return;
       started = true;
-      
       startBtn.disabled = true;
       startBtn.textContent = 'Starting...';
 
-      log('=== START ===');
-      log('UA: ' + navigator.userAgent.substring(0, 60));
-
       try {
-        // 1. Hide overlay
+        // 1. Check HTTPS
+        if (location.protocol !== 'https:' && !['localhost', '127.0.0.1', ''].includes(location.hostname)) {
+          throw new Error('HTTPS required. Please access via a secure URL.');
+        }
+
+        // 2. Hide overlay
         overlay.classList.add('hidden');
         showLoading('Requesting camera...');
 
-        // 2. Check HTTPS
-        if (location.protocol !== 'https:' && 
-            !['localhost', '127.0.0.1', ''].includes(location.hostname)) {
-          throw new Error('HTTPS required. Access via https://...');
-        }
-
-        // 3. Check getUserMedia support
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('Browser doesn\'t support camera. Use Chrome or Firefox.');
-        }
-
-        // 4. Create scene WITH arjs attribute already set
+        // 3. Create scene (triggers AR.js init inside user gesture)
         const scene = createScene();
 
-        // 5. Setup events
+        // 4. Setup listeners
         setupEvents(scene);
 
-        // 6. Wait for AR to initialize
+        // 5. Wait for AR
         showLoading('Initializing AR...');
-        const arSystem = await waitForAR(scene, 15000);
+        await waitForAR(scene, 15000);
 
-        log('AR Ready!');
+        // 6. Done
         showLoading('Looking for marker...');
         prompt.classList.remove('hidden');
-
-        // 7. Safety timeout
-        setTimeout(() => {
-          hideLoading();
-          prompt.classList.remove('hidden');
-        }, 5000);
+        setTimeout(hideLoading, 4000);
 
       } catch (err) {
-        log('ERROR: ' + err.message);
         console.error(err);
-        
-        let msg = err.message;
-        
-        // Android-specific help
-        if (/Android/i.test(navigator.userAgent)) {
-          if (msg.includes('timed out')) {
-            msg = 'Camera timed out.\n\n• Close other apps using camera\n• Reload the page\n• Try Chrome instead of other browsers';
-          } else if (msg.includes('Permission') || msg.includes('permission')) {
-            msg = 'Camera permission denied.\n\n• Tap the lock icon in address bar\n• Set Camera to "Allow"\n• Reload the page';
-          }
-        }
-        
-        showError(msg);
+        showError(err.message);
       }
     }
 
     // ==========================================
-    // LISTENERS
+    // LISTENERS & INIT
     // ==========================================
-    startBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      start();
-    });
+    startBtn.addEventListener('click', (e) => { e.preventDefault(); start(); });
+    retryBtn.addEventListener('click', () => location.reload());
 
-    retryBtn.addEventListener('click', () => {
-      location.reload();
-    });
-
-    // Prevent zoom (Android)
+    // Prevent Android zoom
     document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
-    document.addEventListener('touchmove', (e) => {
-      if (e.touches.length > 1) e.preventDefault();
-    }, { passive: false });
-
-    log('App ready');
+    document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
   })();
   </script>
